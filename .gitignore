@@ -1,0 +1,11 @@
+
+# ignore executables
+main
+*.o
+
+# ignore data
+data.txt
+
+# ignore jupyter shit
+.ipynb_checkpoints/
+
