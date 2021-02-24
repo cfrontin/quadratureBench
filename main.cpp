@@ -1,12 +1,158 @@
 
 #include "main.h"
 
+#define DO_ELEMENT
+
+// #define DO_BONUS
+// #define DO_ODD
+// #define DO_EXPONENTIAL
+
+#ifdef DO_BONUS
+
 quad f_test(const quad &x, const quad &y, const quad &z, const quad &t)
 {
-  return exp(1.0Q*pow(x, 2) + 2.0Q*pow(y, 3) + 3.0Q*pow(y, 4) + 4.0Q*pow(t, 5));
+  return exp(4.0Q*pow(x, 5) + 3.0Q*pow(y, 4) + 2.0Q*pow(z, 3) + 1.0Q*pow(t, 2));
 }
 
-quad Jtrue= 65.94533037500062508665035943680133764992;
+const quad Jtrue= 34.606338088755952564789867693078275939690544824360Q;
+
+#elif defined(DO_ODD)
+
+quad f_test(const quad &x, const quad &y, const quad &z, const quad &t)
+{
+  return sin(1.0Q*pow(x, 2) + 1.0Q*pow(y, 2) + 1.0Q*pow(z, 2) + 1.0Q*pow(t, 2));
+}
+
+const quad Jtrue= 0.8103884703464141536417680253761570893076Q;
+
+#elif defined(DO_EXPONENTIAL)
+
+quad f_test(const quad &x, const quad &y, const quad &z, const quad &t)
+{
+  return exp(1.0Q*pow(x, 2) + 2.0Q*pow(y, 3) + 3.0Q*pow(z, 4) + 4.0Q*pow(t, 5));
+}
+
+const quad Jtrue= 34.60633808875595256478986769307827593969Q;
+
+#else
+
+quad f_test(const quad &x, const quad &y, const quad &z, const quad &t)
+{
+  quad rSquared= (1.0Q*pow(x, 2) + 2.0Q*pow(y, 3) + 3.0Q*pow(z, 4) + 4.0Q*pow(t, 5));
+  return sin(rSquared);
+}
+
+const quad Jtrue= 0.4104949988512827755216606231419224883815Q;
+
+#endif
+
+void get_expos(const int m, std::list<std::vector<int>> &expo_list)
+{
+  expo_list.clear();
+
+  for (int i= 0; i <= m; i++)
+  {
+    for (int j= 0; j <= (m - i); j++)
+    {
+      for (int k= 0; k <= (m - i - j); k++)
+      {
+        for (int l= 0; l <= (m - i - j - k); l++)
+        {
+          std::vector<int> expos= {i, j, k, l};
+          expo_list.push_back(expos);
+        }
+      }
+    }
+  }
+
+}
+
+quad factorial2quad(int x)
+{
+  quad fac= 1.0Q;
+
+  for (int i= x; i > 0; i--)
+  {
+    fac *= static_cast<quad>(i);
+  }
+
+  return fac;
+}
+
+quad function_monomial(quad coeff, std::vector<int> expos, std::vector<quad> xVec)
+{
+  quad x= xVec[0];
+  quad y= xVec[1];
+  quad z= xVec[2];
+  quad t= xVec[3];
+
+  quad a= static_cast<quad>(expos[0]);
+  quad b= static_cast<quad>(expos[1]);
+  quad c= static_cast<quad>(expos[2]);
+  quad d= static_cast<quad>(expos[3]);
+
+  quad f= coeff*pow(x, a)*pow(y, b)*pow(z, c)*pow(t, d);
+
+  return f;
+}
+
+quad true_integral_monomial_simplex(quad coeff, std::vector<int> expos)
+{
+  quad J= coeff;
+
+  int a= expos[0];
+  int b= expos[1];
+  int c= expos[2];
+  int d= expos[3];
+
+  J *= factorial2quad(a);
+  J *= factorial2quad(b);
+  J *= factorial2quad(c);
+  J *= factorial2quad(d);
+  J /= factorial2quad(a + b + c + d + 4);
+
+  return J;
+
+}
+
+quad true_integral_monomial_prism(quad coeff, std::vector<int> expos)
+{
+  quad J= coeff;
+
+  int a= expos[0];
+  int b= expos[1];
+  int c= expos[2];
+  int d= expos[3];
+
+  J *= factorial2quad(a);
+  J *= factorial2quad(b);
+  J *= factorial2quad(c);
+  J /= factorial2quad(a + b + c + 3);
+  J /= (1.0Q + static_cast<quad>(d));
+
+  return J;
+
+}
+
+quad true_integral_monomial_tesseract(quad coeff, std::vector<int> expos)
+{
+  quad J= coeff;
+
+  int a= expos[0];
+  int b= expos[1];
+  int c= expos[2];
+  int d= expos[3];
+
+  J /= (1.0Q + static_cast<quad>(a));
+  J /= (1.0Q + static_cast<quad>(b));
+  J /= (1.0Q + static_cast<quad>(c));
+  J /= (1.0Q + static_cast<quad>(d));
+
+  return J;
+
+}
+
+#ifndef DO_ELEMENT
 
 int main(int argc, char **argv)
 {
@@ -15,17 +161,25 @@ int main(int argc, char **argv)
   using namespace quadmath;
 
   std::ofstream outfile;
-  outfile.open("data.txt", std::ios::app);
+#ifdef DO_BONUS
+  outfile.open("data_bonus.txt", std::ios::app);
+#elif defined(DO_ODD)
+  outfile.open("data_odd.txt", std::ios::app);
+#elif defined(DO_EXPONENTIAL)
+  outfile.open("data_exponential.txt", std::ios::app);
+#else
+  outfile.open("data_sinusoid.txt", std::ios::app);
+#endif
+  // outfile.open("data.txt", std::ios::app);
 
   // define computational box
 
-  const qint d= 4;
+  const int d= 4;
 
   int Nelem_1d;
   int pReq;
   int shapeArg;
   quadShape shape;
-
 
   // read from file
   if (argc <= 1)
@@ -57,10 +211,10 @@ int main(int argc, char **argv)
     throw std::runtime_error("argument not found");
 
   // number of gridpoints
-  qint Nx= static_cast<qint>(Nelem_1d + 1);
-  qint Ny= static_cast<qint>(Nelem_1d + 1);
-  qint Nz= static_cast<qint>(Nelem_1d + 1);
-  qint Nt= static_cast<qint>(Nelem_1d + 1);
+  int Nx= Nelem_1d + 1;
+  int Ny= Nelem_1d + 1;
+  int Nz= Nelem_1d + 1;
+  int Nt= Nelem_1d + 1;
 
   // limits of pentatope
   const quad x0= 0.0;
@@ -97,13 +251,13 @@ int main(int argc, char **argv)
   int pAct= -1;
 
   // loop over box subdivisions
-  for(qint i= 0; i < Nx - 1; i++)
+  for(int i= 0; i < Nx - 1; i++)
   {
-    for (qint j= 0; j < Ny - 1; j++)
+    for (int j= 0; j < Ny - 1; j++)
     {
-      for (qint k= 0; k < Nz - 1; k++)
+      for (int k= 0; k < Nz - 1; k++)
       {
-        for (qint m= 0; m < Nt - 1; m++)
+        for (int m= 0; m < Nt - 1; m++)
         {
 
           // limits of the sub-box
@@ -410,3 +564,187 @@ int main(int argc, char **argv)
   outfile.close();
 
 }
+
+#else // DO_ELEMENT
+
+int main(int argc, char **argv)
+{
+  using namespace boost::multiprecision;
+  using namespace quadquad;
+  using namespace quadmath;
+
+  std::ofstream outfile;
+  outfile.open("data_monomial.txt", std::ios::app);
+
+  for (int m= 4; m <= 20; m++)
+  {
+
+    std::list<std::vector<int>> expo_list= {};
+    get_expos(m, expo_list);
+
+    quad coeff= 1.0Q;
+
+    for (std::vector<int> expo_set : expo_list)
+    {
+      quad a= expo_set[0];
+      quad b= expo_set[1];
+      quad c= expo_set[2];
+      quad d= expo_set[3];
+
+      std::cout << "(a, b, c, d)= (" << a << ", " << b << ", " << c << ", " << d << ")" << std::endl;
+
+      quad J_true_simplex= true_integral_monomial_simplex(coeff, expo_set);
+      quad J_true_prism= true_integral_monomial_prism(coeff, expo_set);
+      quad J_true_tesseract= true_integral_monomial_tesseract(coeff, expo_set);
+
+      std::cout << "J_true_simplex: " << J_true_simplex << std::endl;
+      std::cout << "J_true_prism: " << J_true_prism << std::endl;
+      std::cout << "J_true_tesseract: " << J_true_tesseract << std::endl;
+
+      for (int qOrder= 6; qOrder <= 12; qOrder++)
+      {
+
+        std::vector<quad> node0= {0.0Q, 0.0Q, 0.0Q, 0.0Q};
+        std::vector<quad> node1= {1.0Q, 0.0Q, 0.0Q, 0.0Q};
+        std::vector<quad> node2= {0.0Q, 1.0Q, 0.0Q, 0.0Q};
+        std::vector<quad> node3= {0.0Q, 0.0Q, 1.0Q, 0.0Q};
+        std::vector<quad> node4= {0.0Q, 0.0Q, 0.0Q, 1.0Q};
+
+        std::vector<quad> node3d0= {0.0Q, 0.0Q, 0.0Q};
+        std::vector<quad> node3d1= {1.0Q, 0.0Q, 0.0Q};
+        std::vector<quad> node3d2= {0.0Q, 1.0Q, 0.0Q};
+        std::vector<quad> node3d3= {0.0Q, 0.0Q, 1.0Q};
+
+        quadShape shape;
+
+        quad J_q_simplex= 0.0Q;
+        quad J_q_prism= 0.0Q;
+        quad J_q_tesseract= 0.0Q;
+
+        shape= quadShape::pentatope;
+        Quadrature quadrature_pentatope(qOrder, shape);
+
+        for (int iQ= 0; iQ < quadrature_pentatope.Nquad(); iQ++)
+        {
+          quad xi0;
+          quad xi1;
+          quad xi2;
+          quad xi3;
+          quad w;
+
+          // get coordinate and weight
+          quadrature_pentatope.coordinate(iQ, xi0, xi1, xi2, xi3);
+          quadrature_pentatope.weight(iQ, w);
+
+          // pack it up in a vector
+          std::vector<quad> xi= {xi0, xi1, xi2, xi3};
+          // vector for holding the physical coords
+          std::vector<quad> xVec(4, 0.0Q);
+
+          // translate to physical coordinates
+          ref2phys4d(xi, node0, node1, node2, node3, node4, xVec);
+
+          // adjust weight assuming even pentatopal subdivisions of
+          // hyperrectangular box
+          w *= 1.0Q/(2.0Q*2.0Q*2.0Q*2.0Q);
+
+          quad f= function_monomial(1.0Q, expo_set, xVec);
+
+          J_q_simplex += w*f;
+
+        }
+
+        shape= quadShape::prism;
+        Quadrature quadrature_prism(qOrder, shape);
+
+        for (int iQ= 0; iQ < quadrature_prism.Nquad(); iQ++)
+        {
+          quad xi0;
+          quad xi1;
+          quad xi2;
+          quad xi3;
+          quad w;
+
+          // get coordinate and weight
+          quadrature_prism.coordinate(iQ, xi0, xi1, xi2, xi3);
+          quadrature_prism.weight(iQ, w);
+
+          // pack it up in a vector
+          std::vector<quad> xi3D= {xi0, xi1, xi2};
+          // vector for holding the physical coords
+          std::vector<quad> xVec3D(3, 0.0Q);
+          std::vector<quad> xVec(4, 0.0Q);
+
+          // translate to physical coordinates
+          ref2phys3d(xi3D, node3d0, node3d1, node3d2, node3d3, xVec3D);
+
+          // adjust weight assuming even pentatopal subdivisions of
+          // hyperrectangular box
+          w *= 1.0Q/(2.0Q*2.0Q*2.0Q*2.0Q);
+
+          xVec[0]= xVec3D[0];
+          xVec[1]= xVec3D[1];
+          xVec[2]= xVec3D[2];
+          xVec[3]= 0.5Q*(xi3 + 1.0Q);
+
+          quad f= function_monomial(1.0Q, expo_set, xVec);
+
+          J_q_prism += w*f;
+
+        }
+
+        std::cout << "\tqOrder= " << qOrder << ";\tJq= " << J_q_prism << std::endl;
+
+        shape= quadShape::tesseract;
+        Quadrature quadrature_tesseract(qOrder, shape);
+
+        for (int iQ= 0; iQ < quadrature_tesseract.Nquad(); iQ++)
+        {
+          quad xi0;
+          quad xi1;
+          quad xi2;
+          quad xi3;
+          quad w;
+
+          // get coordinate and weight
+          quadrature_tesseract.coordinate(iQ, xi0, xi1, xi2, xi3);
+          quadrature_tesseract.weight(iQ, w);
+
+          // pack it up in a vector for holding the physical coords
+          std::vector<quad> xVec= {
+            0.5Q*(xi0 + 1.0Q),
+            0.5Q*(xi1 + 1.0Q),
+            0.5Q*(xi2 + 1.0Q),
+            0.5Q*(xi3 + 1.0Q)
+          };
+
+          // adjust weight assuming even pentatopal subdivisions of
+          // hyperrectangular box
+          w *= 1.0Q/(2.0Q*2.0Q*2.0Q*2.0Q);
+
+          quad f= function_monomial(1.0Q, expo_set, xVec);
+
+          J_q_tesseract += w*f;
+
+        }
+
+        std::cout << "\tqOrder= " << qOrder << ";\tJq= " << J_q_tesseract << std::endl;
+
+        outfile << std::setprecision(std::numeric_limits<float128>::max_digits10);
+        outfile << a << "\t" << b << "\t" << c << "\t" << d << "\t";
+        outfile << qOrder << "\t";
+        outfile << J_true_simplex << "\t" << J_q_simplex << "\t" << (J_q_simplex - J_true_simplex) << "\t";
+        outfile << J_true_prism << "\t" << J_q_prism << "\t" << (J_q_prism - J_true_prism) << "\t";
+        outfile << J_true_tesseract << "\t" << J_q_tesseract << "\t" << (J_q_tesseract - J_true_tesseract) << std::endl;
+
+      }
+
+    }
+
+  }
+
+  outfile.close();
+
+}
+
+#endif // DO_ELEMENT
